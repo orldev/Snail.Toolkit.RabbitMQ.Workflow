@@ -1,0 +1,38 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <PackageId>Snail.Toolkit.RabbitMQ.Workflow</PackageId>
+        <Title>Snail.Toolkit.RabbitMQ.Workflow</Title>
+        <Authors>orldev</Authors>
+        <Copyright>Toolkit, 2023-2026</Copyright>
+        <Description>Step-by-step workflows over RabbitMQ queues on top of Snail.Toolkit.RabbitMQ: a plan of typed steps where each step declares what it accepts and what it produces, checked when the application starts, with per-job cancellation and deadlines and a failure path that never retries a job it has already ended.</Description>
+        <PackageTags>RabbitMQ workflow saga messaging steps cancellation</PackageTags>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageProjectUrl>https://github.com/orldev/Snail.Toolkit.RabbitMQ.Workflow</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/orldev/Snail.Toolkit.RabbitMQ.Workflow</RepositoryUrl>
+        <RepositoryType>GitHub</RepositoryType>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.11" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11" />
+        <PackageReference Include="Snail.Toolkit.RabbitMQ" Version="1.1.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Include="..\README.md" Pack="true" PackagePath="\" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="Snail.Toolkit.RabbitMQ.Workflow.Tests" />
+    </ItemGroup>
+
+</Project>

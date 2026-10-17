@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Snail.Toolkit.RabbitMQ.Producers;
-using Snail.Toolkit.RabbitMQ.Workflow;
 
 namespace Snail.Toolkit.RabbitMQ.Workflow.Tests;
 
@@ -25,6 +24,35 @@ public class WorkflowDispatcherTests
     }
 
     [Fact]
+    public async Task Dispatch_AValueTypeResult_PublishesItToTheStepThatAcceptsIt()
+    {
+        var published = Publishes<CountedCommand>();
+        var blueprint = new WorkflowBlueprint<Step>()
+            .Step<ExpandCommand, None, int>(Step.Expand, (context, _) => new ExpandCommand(context))
+            .Step<CountedCommand, int, string>(Step.Search, (context, count) => new CountedCommand(context, count));
+        var context = new WorkflowContext<Step>(Guid.NewGuid(), "query", [Step.Expand, Step.Search], currentStepIndex: 0);
+
+        await Dispatcher(blueprint).DispatchAsync(context, 12);
+
+        Assert.Equal(12, published.Value!.Count);
+        Assert.Equal(Step.Search, published.Value.Context.CurrentStep);
+    }
+
+    [Fact]
+    public async Task Dispatch_AResultOfADerivedType_PublishesItAsTheAcceptedType()
+    {
+        var published = Publishes<SearchCommand>();
+        var blueprint = new WorkflowBlueprint<Step>()
+            .Step<ExpandCommand, None, string[]>(Step.Expand, (context, _) => new ExpandCommand(context))
+            .Step<SearchCommand, IReadOnlyList<string>, string>(Step.Search, (context, terms) => new SearchCommand(context, terms));
+        var context = new WorkflowContext<Step>(Guid.NewGuid(), "query", [Step.Expand, Step.Search], currentStepIndex: 0);
+
+        await Dispatcher(blueprint).DispatchAsync(context, new[] { "blue sky" });
+
+        Assert.Equal(["blue sky"], published.Value!.Terms);
+    }
+
+    [Fact]
     public async Task Start_ANamedPlan_PublishesItsFirstStep()
     {
         var published = Publishes<ExpandCommand>();
@@ -44,7 +72,7 @@ public class WorkflowDispatcherTests
         await Dispatcher().DispatchAsync(context, "the sky scatters blue light");
 
         _notifier.Verify(n => n.FinishedAsync(context, It.IsAny<CancellationToken>()), Times.Once);
-        Assert.False(_cancellation.Complete(job));
+        Assert.False(_cancellation.TryComplete(job));
     }
 
     /// <summary>
@@ -88,7 +116,7 @@ public class WorkflowDispatcherTests
         await Dispatcher().FailAsync(context, failure);
 
         _notifier.Verify(n => n.FailedAsync(context, failure, It.IsAny<CancellationToken>()), Times.Once);
-        Assert.False(_cancellation.Complete(context.JobId));
+        Assert.False(_cancellation.TryComplete(context.JobId));
     }
 
     private StrongBox<TCommand> Publishes<TCommand>() where TCommand : class
@@ -119,3 +147,5 @@ public class WorkflowDispatcherTests
         public T? Value { get; set; }
     }
 }
+
+public sealed record CountedCommand(WorkflowContext<Step> Context, int Count) : IWorkflowCommand<Step>;

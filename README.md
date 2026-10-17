@@ -99,14 +99,14 @@ await dispatcher.StartAsync("full-search", jobId, query, cancellationToken);
 ```
 
 Cancellation is local to a process. To cancel a job running anywhere in the fleet, broadcast over
-a fanout exchange with one queue per instance and call `IJobCancellation.Cancel` in that consumer:
+a fanout exchange with one queue per instance and call `IJobCancellation.TryCancel` in that consumer:
 
 ```csharp
 public sealed class CancelConsumer(IJobCancellation cancellation) : IConsumer<CancelJob>
 {
     public ValueTask HandleAsync(CancelJob message, CancellationToken cancellationToken)
     {
-        cancellation.Cancel(message.JobId);
+        cancellation.TryCancel(message.JobId);
         return ValueTask.CompletedTask;
     }
 }

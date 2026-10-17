@@ -40,23 +40,31 @@ internal sealed class WorkflowDispatcher<TStep>(
 
         if (context.IsFinished)
         {
-            cancellation.Complete(context.JobId);
+            cancellation.TryComplete(context.JobId);
             await notifier.FinishedAsync(context, cancellationToken);
 
-            logger.LogInformation("Job {JobId} finished the plan after {StepCount} step(s)",
-                context.JobId, context.Steps.Count);
+            Log.Finished(logger, context.JobId, context.Steps.Count);
             return;
         }
 
         var next = context.MoveNext();
         var step = blueprint.Step(next.CurrentStep);
 
-        GuardAcceptedType(step, next.CurrentStep, result);
+        if (step.PublishAccepted is Func<WorkflowContext<TStep>, TResult, IRabbitProducer, CancellationToken, ValueTask> accepted)
+        {
+            await notifier.StepStartedAsync(next, cancellationToken);
+            await accepted(next, result, producer, cancellationToken);
+        }
+        else
+        {
+            object? handed = result;
+            GuardAcceptedType(step, next.CurrentStep, handed);
 
-        await notifier.StepStartedAsync(next, cancellationToken);
-        await step.Publish(next, result, producer, cancellationToken);
+            await notifier.StepStartedAsync(next, cancellationToken);
+            await step.Publish(next, handed, producer, cancellationToken);
+        }
 
-        logger.LogDebug("Job {JobId} moved to step {Step}", context.JobId, next.CurrentStep);
+        Log.MovedTo(logger, context.JobId, next.CurrentStep);
     }
 
     /// <inheritdoc/>
@@ -68,11 +76,10 @@ internal sealed class WorkflowDispatcher<TStep>(
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(failure);
 
-        cancellation.Complete(context.JobId);
+        cancellation.TryComplete(context.JobId);
         await notifier.FailedAsync(context, failure, cancellationToken);
 
-        logger.LogWarning("Job {JobId} ended on step {Step}: {Reason}",
-            context.JobId, failure.Step, failure.Reason);
+        Log.Ended(logger, context.JobId, failure.Step, failure.Reason);
     }
 
     private void GuardProducedType(WorkflowContext<TStep> context, Type produced)
@@ -89,7 +96,12 @@ internal sealed class WorkflowDispatcher<TStep>(
             $"but its consumer returned '{produced.Name}'.");
     }
 
-    private static void GuardAcceptedType<TResult>(WorkflowStep<TStep> step, TStep next, TResult result)
+    /// <remarks>
+    /// Only a result of another type than the step accepts comes here; one of exactly that type, or a reference the
+    /// accepted type is assigned from, is published by the step's typed delegate and needs no check. The result
+    /// arrives boxed once, so a value-type result is not boxed again here and for the publish.
+    /// </remarks>
+    private static void GuardAcceptedType(WorkflowStep<TStep> step, TStep next, object? result)
     {
         if (result is null
                 ? !step.Input.IsValueType || Nullable.GetUnderlyingType(step.Input) is not null

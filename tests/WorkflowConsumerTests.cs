@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
-using Snail.Toolkit.RabbitMQ.Workflow;
 
 namespace Snail.Toolkit.RabbitMQ.Workflow.Tests;
 
@@ -45,7 +44,7 @@ public class WorkflowConsumerTests
     public async Task Job_WasCancelled_EndsTheJobAndKeepsTheMessageAcknowledged()
     {
         _cancellation.Token(_message.Context.JobId);
-        _cancellation.Cancel(_message.Context.JobId);
+        _cancellation.TryCancel(_message.Context.JobId);
         var consumer = Consumer(token =>
         {
             token.ThrowIfCancellationRequested();

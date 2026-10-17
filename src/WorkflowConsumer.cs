@@ -73,30 +73,25 @@ public abstract class WorkflowConsumer<TCommand, TStep, TResult> : IConsumer<TCo
         }
         catch (OperationCanceledException) when (job.IsCancellationRequested)
         {
-            _logger.LogWarning("Job {JobId} was cancelled on step {Step}", context.JobId, context.CurrentStep);
+            Log.Cancelled(_logger, context.JobId, context.CurrentStep);
 
             await ReportAsync(context, new WorkflowFailure("The job was cancelled.", Named(context)));
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            _logger.LogInformation(
-                "Step {Step} of job {JobId} was interrupted by shutdown; the message goes back to the broker",
-                context.CurrentStep, context.JobId);
+            Log.Interrupted(_logger, context.CurrentStep, context.JobId);
 
             throw;
         }
         catch (Exception exception) when (CanRetry(exception))
         {
-            _logger.LogWarning(exception,
-                "Step {Step} of job {JobId} failed; the broker will retry it",
-                context.CurrentStep, context.JobId);
+            Log.Retried(_logger, exception, context.CurrentStep, context.JobId);
 
             throw;
         }
         catch (Exception exception)
         {
-            _logger.LogError(exception,
-                "Step {Step} of job {JobId} failed for good", context.CurrentStep, context.JobId);
+            Log.Failed(_logger, exception, context.CurrentStep, context.JobId);
 
             await ReportAsync(context, Failure(exception, context));
         }
@@ -138,9 +133,7 @@ public abstract class WorkflowConsumer<TCommand, TStep, TResult> : IConsumer<TCo
         }
         catch (Exception exception)
         {
-            _logger.LogError(exception,
-                "Job {JobId} ended on step {Step}, and reporting that failure failed as well",
-                context.JobId, context.CurrentStep);
+            Log.NotReported(_logger, exception, context.JobId, context.CurrentStep);
         }
     }
 }

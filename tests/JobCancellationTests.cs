@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Time.Testing;
-using Snail.Toolkit.RabbitMQ.Workflow;
 
 namespace Snail.Toolkit.RabbitMQ.Workflow.Tests;
 
@@ -17,6 +16,20 @@ public class JobCancellationTests
     }
 
     [Fact]
+    public void Token_AskedConcurrentlyForANewJob_IsOneTokenThatCancels()
+    {
+        var cancellation = Cancellation();
+        var job = Guid.NewGuid();
+        var tokens = new CancellationToken[64];
+
+        Parallel.For(0, tokens.Length, i => tokens[i] = cancellation.Token(job));
+        cancellation.TryCancel(job);
+
+        Assert.All(tokens, token => Assert.Equal(tokens[0], token));
+        Assert.True(tokens[0].IsCancellationRequested);
+    }
+
+    [Fact]
     public void Token_ForDifferentJobs_AreIndependent()
     {
         var cancellation = Cancellation();
@@ -24,7 +37,7 @@ public class JobCancellationTests
         cancellation.Token(one);
         var other = cancellation.Token(Guid.NewGuid());
 
-        cancellation.Cancel(one);
+        cancellation.TryCancel(one);
 
         Assert.True(cancellation.Token(one).IsCancellationRequested);
         Assert.False(other.IsCancellationRequested);
@@ -63,14 +76,14 @@ public class JobCancellationTests
         var job = Guid.NewGuid();
         cancellation.Token(job);
 
-        cancellation.Cancel(job);
+        cancellation.TryCancel(job);
 
         Assert.True(cancellation.Token(job).IsCancellationRequested);
     }
 
     [Fact]
     public void Cancel_JobThisProcessNeverSaw_SaysSo() =>
-        Assert.False(Cancellation().Cancel(Guid.NewGuid()));
+        Assert.False(Cancellation().TryCancel(Guid.NewGuid()));
 
     [Fact]
     public void Complete_RunningJob_ReleasesItOnce()
@@ -79,8 +92,8 @@ public class JobCancellationTests
         var job = Guid.NewGuid();
         cancellation.Token(job);
 
-        Assert.True(cancellation.Complete(job));
-        Assert.False(cancellation.Complete(job));
+        Assert.True(cancellation.TryComplete(job));
+        Assert.False(cancellation.TryComplete(job));
     }
 
     /// <summary>
@@ -94,7 +107,7 @@ public class JobCancellationTests
         var job = Guid.NewGuid();
         var token = cancellation.Token(job);
 
-        cancellation.Complete(job);
+        cancellation.TryComplete(job);
 
         Assert.False(token.IsCancellationRequested);
         Assert.False(cancellation.Token(job).IsCancellationRequested);

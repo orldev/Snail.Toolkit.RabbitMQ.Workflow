@@ -44,12 +44,17 @@ public sealed class WorkflowBlueprint<TStep> where TStep : struct, Enum
         if (_steps.ContainsKey(step))
             throw new WorkflowConfigurationException($"Step '{step}' is declared twice.");
 
+        Func<WorkflowContext<TStep>, TIn, IRabbitProducer, CancellationToken, ValueTask> accepted =
+            (context, payload, producer, cancellationToken) =>
+                producer.PublishAsync(command(context, payload), cancellationToken: cancellationToken);
+
         _steps[step] = new WorkflowStep<TStep>(
             typeof(TCommand),
             typeof(TIn),
             typeof(TOut),
             (context, payload, producer, cancellationToken) =>
-                producer.PublishAsync(command(context, (TIn)payload!), cancellationToken: cancellationToken));
+                producer.PublishAsync(command(context, (TIn)payload!), cancellationToken: cancellationToken),
+            accepted);
 
         return this;
     }
@@ -140,9 +145,15 @@ public sealed class WorkflowBlueprint<TStep> where TStep : struct, Enum
 /// <summary>
 /// One declared step: its message type, the payload it accepts, the payload it produces, and how it is published.
 /// </summary>
+/// <remarks>
+/// <see cref="Publish"/> takes any payload and casts it to the accepted type; <see cref="PublishAccepted"/> is the same
+/// publish typed by the accepted payload, a <c>Func</c> of the context, that payload, the producer and the token, so a
+/// result already of that type is handed over as it is, without a box.
+/// </remarks>
 internal sealed record WorkflowStep<TStep>(
     Type Command,
     Type Input,
     Type Output,
-    Func<WorkflowContext<TStep>, object?, IRabbitProducer, CancellationToken, ValueTask> Publish)
+    Func<WorkflowContext<TStep>, object?, IRabbitProducer, CancellationToken, ValueTask> Publish,
+    Delegate PublishAccepted)
     where TStep : struct, Enum;

@@ -17,38 +17,49 @@ namespace Snail.Toolkit.RabbitMQ.Workflow;
 /// jobs actually in flight.
 /// </para>
 /// <para>
-/// The source is built through <see cref="Lazy{T}"/> because the factory of a
-/// <see cref="ConcurrentDictionary{TKey,TValue}"/> may run more than once under contention, and
-/// every extra run would arm a timer nobody would ever release.
+/// Two messages of a job this process has not seen yet may both build a source for it, and only
+/// one of them enters the map. The other was never handed out, so it is disposed on the spot:
+/// left alone, it would arm a timer nobody would ever release.
 /// </para>
 /// </remarks>
 public sealed class JobCancellation(WorkflowOptions options, TimeProvider time) : IJobCancellation
 {
-    private readonly ConcurrentDictionary<Guid, Lazy<CancellationTokenSource>> _jobs = new();
+    private readonly ConcurrentDictionary<Guid, CancellationTokenSource> _jobs = new();
 
     /// <inheritdoc/>
-    public CancellationToken Token(Guid jobId) =>
-        _jobs.GetOrAdd(jobId, _ => new Lazy<CancellationTokenSource>(Deadline)).Value.Token;
+    public CancellationToken Token(Guid jobId)
+    {
+        if (_jobs.TryGetValue(jobId, out var running))
+            return running.Token;
+
+        var created = Deadline();
+        running = _jobs.GetOrAdd(jobId, created);
+
+        if (!ReferenceEquals(running, created))
+            created.Dispose();
+
+        return running.Token;
+    }
 
     /// <inheritdoc/>
     /// <remarks>
     /// The entry stays behind, cancelled, so that another message of the same job picked up after
-    /// the cancellation sees a cancelled token instead of a fresh one. Only <see cref="Complete"/>
+    /// the cancellation sees a cancelled token instead of a fresh one. Only <see cref="TryComplete"/>
     /// releases it. A cancellation that arrives before this process has seen the job at all is
     /// answered with false and forgotten, because remembering it would mean holding an entry for
     /// every job cancelled anywhere in the fleet.
     /// </remarks>
-    public bool Cancel(Guid jobId)
+    public bool TryCancel(Guid jobId)
     {
         if (!_jobs.TryGetValue(jobId, out var source))
             return false;
 
-        source.Value.Cancel();
+        source.Cancel();
         return true;
     }
 
     /// <inheritdoc/>
-    public bool Complete(Guid jobId) => _jobs.TryRemove(jobId, out _);
+    public bool TryComplete(Guid jobId) => _jobs.TryRemove(jobId, out _);
 
     private CancellationTokenSource Deadline() =>
         options.JobLifetime == Timeout.InfiniteTimeSpan

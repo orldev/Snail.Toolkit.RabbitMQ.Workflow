@@ -1,5 +1,3 @@
-using Snail.Toolkit.RabbitMQ.Workflow;
-
 namespace Snail.Toolkit.RabbitMQ.Workflow.Tests;
 
 public class WorkflowContextTests

@@ -10,8 +10,8 @@ The cancellation and deadline of every job this process is running.
 
 | Member | Summary |
 | --- | --- |
-| `CancellationToken Token(Guid jobId)` | The token that is cancelled when the job is cancelled or outlives its deadline. |
-| `bool TryCancel(Guid jobId)` | Cancels the job if this process is running it. |
+| `CancellationToken Token(Guid jobId, DateTime startedAt = default)` | The token that is cancelled when the job is cancelled or outlives its deadline. |
+| `bool TryCancel(Guid jobId)` | Cancels the job here, whether or not this process has seen it yet. |
 | `bool TryComplete(Guid jobId)` | Releases a job that reached a terminal outcome. |
 
 ### interface IWorkflowCommand<TStep>
@@ -30,7 +30,19 @@ Moves a job through its plan by publishing the next step's message.
 | --- | --- |
 | `ValueTask DispatchAsync<TResult>(WorkflowContext<TStep> context, TResult result, CancellationToken cancellationToken = default)` | Hands a completed step's result to the next step, or finishes the job when the plan is done. |
 | `ValueTask FailAsync(WorkflowContext<TStep> context, WorkflowFailure failure, CancellationToken cancellationToken = default)` | Ends the job for good and reports why. |
-| `ValueTask StartAsync(string plan, Guid jobId, string query, CancellationToken cancellationToken = default)` | Starts a job on a named plan and publishes its first step. |
+| `ValueTask StartAsync<TPayload>(string plan, Guid jobId, TPayload payload, CancellationToken cancellationToken = default)` | Starts a job on a named plan and publishes its first step with the payload given. |
+| `ValueTask<Guid> StartAsync<TPayload>(string plan, TPayload payload, CancellationToken cancellationToken)` | Starts a job on a named plan under an id of its own, and answers with that id. |
+
+### interface IWorkflowLedger
+
+Remembers, for a while, the few facts about each job its workers must agree on: which step it handed on — its start being the first — and that it ended.
+
+| Member | Summary |
+| --- | --- |
+| `ValueTask ReleaseHandOverAsync(Guid jobId, int stepIndex, CancellationToken cancellationToken = default)` | Takes back a hand-over whose message could not be published, so the step's next attempt can hand on. |
+| `ValueTask<bool> TryEndAsync(Guid jobId, TimeSpan keepFor, CancellationToken cancellationToken = default)` | Marks a job ended — finished, failed or cancelled. |
+| `ValueTask<bool> TryHandOverAsync(Guid jobId, int stepIndex, TimeSpan keepFor, CancellationToken cancellationToken = default)` | Marks the result of a job's step handed on to the step after it; step −1 is the job's start, handed to its first step. |
+| `bool IsShared { get; }` | Whether every worker of the fleet reads the same marks. |
 
 ### interface IWorkflowNotifier<TStep>
 
@@ -48,9 +60,9 @@ Keeps one cancellation source per job for as long as the job is running in this 
 
 | Member | Summary |
 | --- | --- |
-| `CancellationToken Token(Guid jobId)` | The token that is cancelled when the job is cancelled or outlives its deadline. |
+| `CancellationToken Token(Guid jobId, DateTime startedAt = default)` | The token that is cancelled when the job is cancelled or outlives its deadline. |
 | `JobCancellation(WorkflowOptions options, TimeProvider time)` | Keeps one cancellation source per job for as long as the job is running in this process. |
-| `bool TryCancel(Guid jobId)` | Cancels the job if this process is running it. |
+| `bool TryCancel(Guid jobId)` | Cancels the job here, whether or not this process has seen it yet. |
 | `bool TryComplete(Guid jobId)` | Releases a job that reached a terminal outcome. |
 
 ### struct None
@@ -72,11 +84,11 @@ Declares what every step of a workflow receives, what it produces, and which pla
 
 ### class WorkflowConfigurationException
 
-Thrown at startup when the registered steps and plans cannot form a working workflow.
+Thrown when the declared steps and plans cannot form a working workflow, or a job is handed something they do not fit.
 
 | Member | Summary |
 | --- | --- |
-| `WorkflowConfigurationException(string message)` | Thrown at startup when the registered steps and plans cannot form a working workflow. |
+| `WorkflowConfigurationException(string message)` | Thrown when the declared steps and plans cannot form a working workflow, or a job is handed something they do not fit. |
 
 ### abstract class WorkflowConsumer<TCommand, TStep, TResult>
 
@@ -85,6 +97,7 @@ Runs one step of a job and hands its result to the next step.
 | Member | Summary |
 | --- | --- |
 | `Task<TResult> ProcessAsync(TCommand message, CancellationToken cancellationToken)` | Does the step's work and returns what the next step needs. |
+| `ValueTask ExhaustedAsync(TCommand message, Exception failure, CancellationToken cancellationToken = default)` | Learns that a message will not be delivered again, and the failure of its last attempt. |
 | `ValueTask HandleAsync(TCommand message, CancellationToken cancellationToken)` | Handles an incoming message asynchronously. |
 | `WorkflowConsumer(IJobCancellation cancellation, IWorkflowDispatcher<TStep> dispatcher, ILoggerFactory loggerFactory)` | Creates a consumer that logs under the name of the derived type. |
 | `bool CanRetry(Exception exception)` | Whether a failure is worth another attempt. |
@@ -95,17 +108,26 @@ The position of one job inside its plan, carried in every message of that job.
 
 | Member | Summary |
 | --- | --- |
+| `DateTime StartedAt { get; init; }` | When the job was started, in UTC; the default value when the message predates it. |
 | `Guid JobId { get; init; }` | Identifies the job across every step and every process handling it. |
 | `IReadOnlyList<TStep> Steps { get; init; }` | The ordered plan the job follows. |
 | `TStep CurrentStep { get; }` | The step being executed right now. |
 | `TStep? PreviousStep { get; }` | The step executed before the current one, or null at the start of the plan. |
-| `WorkflowContext(Guid jobId, string originalQuery, IReadOnlyList<TStep> steps, int currentStepIndex = -1)` | Creates a context positioned before the first step, or at an explicit index into the plan. |
+| `WorkflowContext(Guid jobId, IReadOnlyList<TStep> steps, int currentStepIndex = -1, DateTime startedAt = default)` | Creates a context positioned before the first step, or at an explicit index into the plan. |
 | `WorkflowContext<TStep> MoveNext()` | The same job advanced to the next step. |
 | `bool Equals(WorkflowContext<TStep>? other)` |  |
 | `bool IsFinished { get; }` | Whether the current step is the last one of the plan. |
 | `int CurrentStepIndex { get; init; }` | Where the job stands in its plan; -1 before the first step. |
 | `int GetHashCode()` | Serves as the default hash function. |
-| `string OriginalQuery { get; init; }` | The request the job was started for. |
+
+### class WorkflowDeadline<TStep>
+
+The message that comes back when a job's lifetime has passed, to end the job if nothing ended it first.
+
+| Member | Summary |
+| --- | --- |
+| `WorkflowContext<TStep> Context { get; init; }` | The job as it was started. |
+| `WorkflowDeadline(WorkflowContext<TStep> Context)` | The message that comes back when a job's lifetime has passed, to end the job if nothing ended it first. |
 
 ### class WorkflowFailure
 
@@ -133,10 +155,19 @@ Settings that apply to every job of one workflow.
 
 | Member | Summary |
 | --- | --- |
-| `TimeSpan JobLifetime { get; set; }` | How long a job may run before it is cancelled; `InfiniteTimeSpan` for no deadline. |
+| `TimeSpan JobLifetime { get; set; }` | How long a job may run before it is cancelled. |
+| `TimeSpan LongestJobLifetime { get; }` | The longest deadline a job can have: what a timer holds, about 49.7 days. |
 | `WorkflowOptions()` |  |
 
 ## Snail.Toolkit.RabbitMQ.Workflow.Extensions
+
+### static class RabbitConnectionBuilderExtensions
+
+Declares the queues that bring a job's deadline back.
+
+| Member | Summary |
+| --- | --- |
+| `IRabbitConnectionBuilder AddWorkflowDeadline<TStep>(this IRabbitConnectionBuilder connection, string queue)` | Gives every job of the workflow a deadline message, and a consumer that ends the job when it comes back. |
 
 ### static class RabbitQueueBuilderExtensions
 
@@ -144,7 +175,7 @@ Declares a queue that carries one step of a workflow.
 
 | Member | Summary |
 | --- | --- |
-| `IRabbitQueueBuilder<T> AsWorkflowStep<T>(this IRabbitQueueBuilder<T> queue, TimeSpan delay, int maxAttempts = 3)` | Declares the queue durable and retrying, as a workflow step requires. |
+| `IRabbitQueueBuilder<T> AsWorkflowStep<T>(this IRabbitQueueBuilder<T> queue, TimeSpan delay, int maxAttempts = 3, string? parkTo = null)` | Declares the queue durable and retrying, as a workflow step requires. |
 
 ### static class ServiceCollectionExtensions
 
@@ -154,4 +185,4 @@ Registers a workflow and everything it needs to run.
 | --- | --- |
 | `IServiceCollection AddJobCancellation(this IServiceCollection services, WorkflowOptions options)` | Registers the per-process cancellation and deadline of running jobs. |
 | `IServiceCollection AddWorkflow<TStep>(this IServiceCollection services, Action<WorkflowBlueprint<TStep>> workflow)` | Declares a workflow's steps and plans, proves they fit together, and registers it. |
-| `IServiceCollection AddWorkflowDispatch<TStep>(this IServiceCollection services, WorkflowBlueprint<TStep> blueprint)` | Registers the dispatcher that walks a blueprint, and a silent notifier unless one is already registered. |
+| `IServiceCollection AddWorkflowDispatch<TStep>(this IServiceCollection services, WorkflowBlueprint<TStep> blueprint)` | Registers the dispatcher that walks a blueprint, a silent notifier and a ledger kept in this process unless either is already registered, and the check that the host's consumers fit the workflow. |

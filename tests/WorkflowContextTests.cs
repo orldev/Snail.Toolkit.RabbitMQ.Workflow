@@ -7,13 +7,13 @@ public class WorkflowContextTests
     {
         var plan = Array.Empty<Step>();
 
-        Assert.Throws<ArgumentException>(() => new WorkflowContext<Step>(Guid.NewGuid(), "query", plan));
+        Assert.Throws<ArgumentException>(() => new WorkflowContext<Step>(Guid.NewGuid(), plan));
     }
 
     [Fact]
     public void Context_IndexBeyondPlan_IsRejected() =>
         Assert.Throws<ArgumentOutOfRangeException>(() =>
-            new WorkflowContext<Step>(Guid.NewGuid(), "query", [Step.Expand], currentStepIndex: 1));
+            new WorkflowContext<Step>(Guid.NewGuid(), [Step.Expand], currentStepIndex: 1));
 
     /// <summary>
     /// A message whose json carries no steps used to deserialize into a context that threw
@@ -22,7 +22,7 @@ public class WorkflowContextTests
     [Fact]
     public void Context_PlanIsNull_IsRejected() =>
         Assert.Throws<ArgumentNullException>(() =>
-            new WorkflowContext<Step>(Guid.NewGuid(), "query", null!));
+            new WorkflowContext<Step>(Guid.NewGuid(), null!));
 
     [Fact]
     public void CurrentStep_BeforeThePlanIsEntered_Throws()
@@ -37,7 +37,7 @@ public class WorkflowContextTests
     {
         var context = TestWorkflow.Context(currentStepIndex: 2);
 
-        Assert.Throws<InvalidOperationException>(() => context.MoveNext());
+        Assert.Throws<InvalidOperationException>(context.MoveNext);
     }
 
     [Fact]
@@ -59,7 +59,7 @@ public class WorkflowContextTests
     public void Plan_MutatedByItsCallerAfterwards_DoesNotChangeTheContext()
     {
         var plan = new List<Step> { Step.Expand, Step.Search };
-        var context = new WorkflowContext<Step>(Guid.NewGuid(), "query", plan);
+        var context = new WorkflowContext<Step>(Guid.NewGuid(), plan);
 
         plan.Add(Step.Rank);
 
@@ -74,8 +74,8 @@ public class WorkflowContextTests
     public void Contexts_SamePositionAndPlanInSeparateLists_AreEqual()
     {
         var jobId = Guid.NewGuid();
-        var one = new WorkflowContext<Step>(jobId, "query", [Step.Expand, Step.Search]);
-        var other = new WorkflowContext<Step>(jobId, "query", [Step.Expand, Step.Search]);
+        var one = new WorkflowContext<Step>(jobId, [Step.Expand, Step.Search]);
+        var other = new WorkflowContext<Step>(jobId, [Step.Expand, Step.Search]);
 
         Assert.Equal(one, other);
         Assert.Equal(one.GetHashCode(), other.GetHashCode());
@@ -85,7 +85,7 @@ public class WorkflowContextTests
     public void Contexts_DifferentPositionInTheSamePlan_AreNotEqual()
     {
         var jobId = Guid.NewGuid();
-        var one = new WorkflowContext<Step>(jobId, "query", [Step.Expand, Step.Search]);
+        var one = new WorkflowContext<Step>(jobId, [Step.Expand, Step.Search]);
         var other = one.MoveNext();
 
         Assert.NotEqual(one, other);

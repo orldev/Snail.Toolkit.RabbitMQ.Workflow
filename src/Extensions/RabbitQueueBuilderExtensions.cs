@@ -15,19 +15,21 @@ public static class RabbitQueueBuilderExtensions
         /// </summary>
         /// <param name="delay">How long a failed step waits before it is tried again.</param>
         /// <param name="maxAttempts">Attempts per message before the broker gives up on it.</param>
+        /// <param name="parkTo">
+        /// The queue that keeps a step whose attempts ran out; the step's queue name with <c>.parked</c> when not given.
+        /// </param>
         /// <remarks>
         /// A workflow consumer rethrows transient failures on the assumption that the broker will
         /// bring the message back. On a queue with neither retry nor a dead letter exchange that
         /// assumption is false — the rejected message is discarded silently — and the job it
-        /// belonged to hangs forever. The library cannot check this for itself, because the toolkit
-        /// keeps its queue declarations internal, so this is the one obvious way to get it right.
+        /// belonged to hangs forever. A host whose step queue was declared otherwise refuses to start.
         /// <para>
-        /// A step whose attempts run out is dropped by the broker with a logged error and no
-        /// terminal event, which leaves its job hanging. Until job state lives somewhere durable,
-        /// size <paramref name="maxAttempts"/> so that outcome stays rare, and watch the log.
+        /// A step whose attempts run out used to be acknowledged and dropped, its job left hanging. It is
+        /// parked now, so the message that could finish the job is still there to inspect and replay, and
+        /// its job is reported failed. Size <paramref name="maxAttempts"/> so that outcome stays rare.
         /// </para>
         /// </remarks>
-        public IRabbitQueueBuilder<T> AsWorkflowStep(TimeSpan delay, int maxAttempts = 3) =>
-            queue.Durable().WithRetry(delay, maxAttempts);
+        public IRabbitQueueBuilder<T> AsWorkflowStep(TimeSpan delay, int maxAttempts = 3, string? parkTo = null) =>
+            queue.Durable().WithRetry(delay, maxAttempts, parkTo ?? $"{queue.Declaration.Name}.parked");
     }
 }

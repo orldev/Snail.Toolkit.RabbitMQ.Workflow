@@ -38,17 +38,19 @@ public class WorkflowBlueprintTests
         Assert.Contains("Rank", failure.Message, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// A first step used to have to accept None, so a job could not be started with anything. What it is started
+    /// with is now the caller's payload, checked when the job starts.
+    /// </summary>
     [Fact]
-    public void Validate_PlanStartingWithAStepThatExpectsAPayload_IsRejected()
+    public void Validate_PlanStartingWithAStepThatExpectsAPayload_Passes()
     {
         var blueprint = new WorkflowBlueprint<Step>()
             .Step<SearchCommand, IReadOnlyList<string>, IReadOnlyList<string>>(
                 Step.Search, (context, terms) => new SearchCommand(context, terms))
-            .Plan("broken", Step.Search);
+            .Plan("search", Step.Search);
 
-        var failure = Assert.Throws<WorkflowConfigurationException>(blueprint.Validate);
-
-        Assert.Contains("None", failure.Message, StringComparison.Ordinal);
+        blueprint.Validate();
     }
 
     [Fact]

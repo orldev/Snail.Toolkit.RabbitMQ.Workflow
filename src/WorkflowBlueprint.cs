@@ -17,6 +17,7 @@ public sealed class WorkflowBlueprint<TStep> where TStep : struct, Enum
 {
     private readonly Dictionary<TStep, WorkflowStep<TStep>> _steps = [];
     private readonly Dictionary<string, IReadOnlyList<TStep>> _plans = [];
+    private bool _isValidated;
 
     /// <summary>
     /// Settings shared by every job of this workflow.
@@ -27,7 +28,10 @@ public sealed class WorkflowBlueprint<TStep> where TStep : struct, Enum
     /// Declares a step: the message that carries it, the payload it accepts, and the payload it produces.
     /// </summary>
     /// <typeparam name="TCommand">The message published to run this step.</typeparam>
-    /// <typeparam name="TIn">What the previous step must produce; <see cref="None"/> for the first step.</typeparam>
+    /// <typeparam name="TIn">
+    /// What the previous step must produce, or, for a plan's first step, what the job is started with; <see cref="None"/>
+    /// for nothing.
+    /// </typeparam>
     /// <typeparam name="TOut">What this step's consumer returns.</typeparam>
     /// <exception cref="WorkflowConfigurationException">The step is already declared.</exception>
     /// <remarks>
@@ -40,6 +44,7 @@ public sealed class WorkflowBlueprint<TStep> where TStep : struct, Enum
         where TCommand : class, IWorkflowCommand<TStep>
     {
         ArgumentNullException.ThrowIfNull(command);
+        ThrowIfValidated();
 
         if (_steps.ContainsKey(step))
             throw new WorkflowConfigurationException($"Step '{step}' is declared twice.");
@@ -67,6 +72,7 @@ public sealed class WorkflowBlueprint<TStep> where TStep : struct, Enum
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(steps);
+        ThrowIfValidated();
 
         if (steps.Length == 0)
             throw new WorkflowConfigurationException($"Plan '{name}' has no steps.");
@@ -82,13 +88,18 @@ public sealed class WorkflowBlueprint<TStep> where TStep : struct, Enum
     /// </summary>
     /// <exception cref="WorkflowConfigurationException">No plan goes by that name.</exception>
     public IReadOnlyList<TStep> Steps(string name) =>
-        _plans.TryGetValue(name, out var steps)
+        _plans.TryGetValue(name, out IReadOnlyList<TStep>? steps)
             ? steps
             : throw new WorkflowConfigurationException(
                 $"No plan named '{name}'. Declared plans: {Names(_plans.Keys)}.");
 
+    /// <summary>
+    /// Every declared step, by its name.
+    /// </summary>
+    internal IReadOnlyDictionary<TStep, WorkflowStep<TStep>> DeclaredSteps => _steps;
+
     internal WorkflowStep<TStep> Step(TStep step) =>
-        _steps.TryGetValue(step, out var declared)
+        _steps.TryGetValue(step, out WorkflowStep<TStep>? declared)
             ? declared
             : throw new WorkflowConfigurationException(
                 $"Step '{step}' is not declared, so no message can be published for it.");
@@ -102,30 +113,34 @@ public sealed class WorkflowBlueprint<TStep> where TStep : struct, Enum
         if (_steps.Count == 0)
             throw new WorkflowConfigurationException("The workflow declares no steps.");
 
-        foreach (var (name, steps) in _plans)
+        foreach ((string name, IReadOnlyList<TStep> steps) in _plans)
         {
             ValidatePlan(name, steps);
         }
+
+        _isValidated = true;
+        Options.Fix();
+    }
+
+    private void ThrowIfValidated()
+    {
+        if (_isValidated)
+            throw new WorkflowConfigurationException(
+                "The workflow was validated when it was registered, and a step or plan added afterwards would never be checked.");
     }
 
     private void ValidatePlan(string name, IReadOnlyList<TStep> steps)
     {
-        foreach (var step in steps.Where(step => !_steps.ContainsKey(step)))
+        foreach (TStep step in steps.Where(step => !_steps.ContainsKey(step)))
         {
             throw new WorkflowConfigurationException(
                 $"Plan '{name}' uses step '{step}', which is not declared.");
         }
 
-        var first = _steps[steps[0]];
-        if (first.Input != typeof(None))
-            throw new WorkflowConfigurationException(
-                $"Plan '{name}' starts with step '{steps[0]}', which expects '{first.Input.Name}'. " +
-                "A first step has no predecessor to take a payload from, so it must accept 'None'.");
-
         for (var i = 1; i < steps.Count; i++)
         {
-            var producedBy = _steps[steps[i - 1]];
-            var consumedBy = _steps[steps[i]];
+            WorkflowStep<TStep> producedBy = _steps[steps[i - 1]];
+            WorkflowStep<TStep> consumedBy = _steps[steps[i]];
 
             if (!consumedBy.Input.IsAssignableFrom(producedBy.Output))
                 throw new WorkflowConfigurationException(
@@ -137,23 +152,7 @@ public sealed class WorkflowBlueprint<TStep> where TStep : struct, Enum
 
     private static string Names(IEnumerable<string> plans)
     {
-        var declared = string.Join(", ", plans.Order(StringComparer.Ordinal));
+        string declared = string.Join(", ", plans.Order(StringComparer.Ordinal));
         return declared.Length == 0 ? "none" : declared;
     }
 }
-
-/// <summary>
-/// One declared step: its message type, the payload it accepts, the payload it produces, and how it is published.
-/// </summary>
-/// <remarks>
-/// <see cref="Publish"/> takes any payload and casts it to the accepted type; <see cref="PublishAccepted"/> is the same
-/// publish typed by the accepted payload, a <c>Func</c> of the context, that payload, the producer and the token, so a
-/// result already of that type is handed over as it is, without a box.
-/// </remarks>
-internal sealed record WorkflowStep<TStep>(
-    Type Command,
-    Type Input,
-    Type Output,
-    Func<WorkflowContext<TStep>, object?, IRabbitProducer, CancellationToken, ValueTask> Publish,
-    Delegate PublishAccepted)
-    where TStep : struct, Enum;

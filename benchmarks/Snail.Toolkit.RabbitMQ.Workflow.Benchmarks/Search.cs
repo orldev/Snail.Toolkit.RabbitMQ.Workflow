@@ -44,6 +44,7 @@ public static class Search
         var services = new ServiceCollection();
         services.AddLogging(logging => logging.SetMinimumLevel(LogLevel.Information));
         services.AddSingleton<IRabbitProducer, CountingProducer>();
+        services.AddSingleton<IWorkflowLedger, AcceptingLedger>();
         services.AddWorkflow<Step>(workflow => workflow
             .Step<SearchCommand, None, string>(Step.Search, static (context, _) => new SearchCommand(context))
             .Step<RankCommand, string, string>(Step.Rank, static (context, found) => new RankCommand(context, found))
@@ -54,5 +55,23 @@ public static class Search
     }
 
     public static WorkflowContext<Step> Context(int index) =>
-        new(Guid.Parse("0f8fad5b-d9cb-469f-a165-70867728950e"), "what is the capital of France", [Step.Search, Step.Rank, Step.Answer], index);
+        new(Guid.Parse("0f8fad5b-d9cb-469f-a165-70867728950e"), [Step.Search, Step.Rank, Step.Answer], index);
+}
+
+/// <summary>
+/// A ledger that takes every mark, so a benchmark that hands the same step on again and again measures the hand-over
+/// and not a duplicate dropped; the ledger kept in the process is measured by <see cref="Ledgering"/>.
+/// </summary>
+public sealed class AcceptingLedger : IWorkflowLedger
+{
+    public bool IsShared => false;
+
+    public ValueTask<bool> TryHandOverAsync(Guid jobId, int stepIndex, TimeSpan keepFor, CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult(true);
+
+    public ValueTask ReleaseHandOverAsync(Guid jobId, int stepIndex, CancellationToken cancellationToken = default) =>
+        ValueTask.CompletedTask;
+
+    public ValueTask<bool> TryEndAsync(Guid jobId, TimeSpan keepFor, CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult(true);
 }

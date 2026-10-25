@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 
 namespace Snail.Toolkit.RabbitMQ.Workflow.Extensions;
 
@@ -54,16 +55,25 @@ public static class ServiceCollectionExtensions
         }
 
         /// <summary>
-        /// Registers the dispatcher that walks a blueprint, and a silent notifier unless one is already registered.
+        /// Registers the dispatcher that walks a blueprint, a silent notifier and a ledger kept in this process unless
+        /// either is already registered, and the check that the host's consumers fit the workflow.
         /// </summary>
+        /// <remarks>
+        /// A fleet registers its own <see cref="IWorkflowLedger"/>, one every worker reads, before this: the one kept
+        /// in this process catches only what lands twice on one worker.
+        /// </remarks>
         public IServiceCollection AddWorkflowDispatch<TStep>(WorkflowBlueprint<TStep> blueprint)
             where TStep : struct, Enum
         {
             ArgumentNullException.ThrowIfNull(blueprint);
 
+            services.TryAddSingleton(TimeProvider.System);
+            services.TryAddSingleton(blueprint.Options);
+            services.TryAddSingleton<IWorkflowLedger, LocalLedger>();
             services.TryAddSingleton(blueprint);
             services.TryAddSingleton<IWorkflowNotifier<TStep>, SilentNotifier<TStep>>();
             services.TryAddSingleton<IWorkflowDispatcher<TStep>, WorkflowDispatcher<TStep>>();
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, WorkflowStartupCheck<TStep>>());
 
             return services;
         }

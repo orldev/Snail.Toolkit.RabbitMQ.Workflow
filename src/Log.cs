@@ -60,6 +60,46 @@ internal static partial class Log
             FailureNotReported(logger, exception, jobId, step.ToString());
     }
 
+    internal static void GivenUp<TStep>(ILogger logger, Exception exception, TStep step, Guid jobId) where TStep : struct, Enum
+    {
+        if (logger.IsEnabled(LogLevel.Error))
+            StepGivenUp(logger, exception, step.ToString(), jobId);
+    }
+
+    internal static void NotHandedOver<TStep>(ILogger logger, WorkflowContext<TStep> context) where TStep : struct, Enum
+    {
+        if (logger.IsEnabled(LogLevel.Information))
+            StepNotHandedOver(logger, context.CurrentStepIndex < 0 ? "start" : context.CurrentStep.ToString(), context.JobId);
+    }
+
+    [LoggerMessage(EventId = 12, Level = LogLevel.Information, SkipEnabledCheck = true,
+        Message = "Step {Step} of job {JobId} was handed on already, or its job has ended; this delivery's result is dropped")]
+    private static partial void StepNotHandedOver(ILogger logger, string step, Guid jobId);
+
+    [LoggerMessage(EventId = 13, Level = LogLevel.Information,
+        Message = "Job {JobId} had ended already; it is not reported again")]
+    internal static partial void EndedAlready(ILogger logger, Guid jobId);
+
+    [LoggerMessage(EventId = 15, Level = LogLevel.Error,
+        Message = "The deadline of job {JobId} could not be published; its workers still stop it at its deadline, but nothing reports a deadline passed between steps")]
+    internal static partial void DeadlineNotPublished(ILogger logger, Exception exception, Guid jobId);
+
+    [LoggerMessage(EventId = 14, Level = LogLevel.Error,
+        Message = "The hand-over of job {JobId} could not be taken back after its publish failed; the step's retry may be dropped as a duplicate")]
+    internal static partial void NotReleased(ILogger logger, Exception exception, Guid jobId);
+
+    [LoggerMessage(EventId = 11, Level = LogLevel.Error, SkipEnabledCheck = true,
+        Message = "Step {Step} of job {JobId} failed on every attempt and was given up; the job is reported failed")]
+    private static partial void StepGivenUp(ILogger logger, Exception exception, string step, Guid jobId);
+
+    [LoggerMessage(EventId = 10, Level = LogLevel.Error,
+        Message = "A {Command} message carries no workflow context positioned on a step; the broker retries it, then parks it")]
+    internal static partial void NotEntered(ILogger logger, string command);
+
+    [LoggerMessage(EventId = 9, Level = LogLevel.Error,
+        Message = "The workflow notifier failed for job {JobId}; the job goes on without that notice")]
+    internal static partial void NotNotified(ILogger logger, Exception exception, Guid jobId);
+
     [LoggerMessage(EventId = 1, Level = LogLevel.Information, SkipEnabledCheck = true,
         Message = "Job {JobId} finished the plan after {StepCount} step(s)")]
     private static partial void FinishedPlan(ILogger logger, Guid jobId, int stepCount);

@@ -54,16 +54,16 @@ public class JobCancellationTests
         Assert.True(token.IsCancellationRequested);
     }
 
+    /// <summary>
+    /// A job without a deadline was forgotten by no worker that ran a step of it and saw it end elsewhere.
+    /// </summary>
     [Fact]
-    public void Token_WithoutALifetime_NeverExpires()
-    {
-        var cancellation = Cancellation(Timeout.InfiniteTimeSpan);
-        var token = cancellation.Token(Guid.NewGuid());
+    public void Options_WithoutADeadline_AreRefused() =>
+        Assert.Throws<WorkflowConfigurationException>(() => new WorkflowOptions { JobLifetime = Timeout.InfiniteTimeSpan });
 
-        _time.Advance(TimeSpan.FromDays(1));
-
-        Assert.False(token.IsCancellationRequested);
-    }
+    [Fact]
+    public void Options_WithTheLongestDeadline_AreTaken() =>
+        Assert.Equal(WorkflowOptions.LongestJobLifetime, new WorkflowOptions { JobLifetime = WorkflowOptions.LongestJobLifetime }.JobLifetime);
 
     /// <summary>
     /// Cancelling used to drop the job from the registry, so the next message of that job was

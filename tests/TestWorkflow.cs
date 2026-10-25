@@ -32,5 +32,5 @@ public static class TestWorkflow
         .Plan(FullSearch, Step.Expand, Step.Search, Step.Rank);
 
     public static WorkflowContext<Step> Context(int currentStepIndex = 0) =>
-        new(Guid.NewGuid(), "why is the sky blue", [Step.Expand, Step.Search, Step.Rank], currentStepIndex);
+        new(Guid.NewGuid(), [Step.Expand, Step.Search, Step.Rank], currentStepIndex);
 }

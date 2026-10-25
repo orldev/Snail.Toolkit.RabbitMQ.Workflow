@@ -118,6 +118,33 @@ public class WorkflowConsumerTests
         await consumer.HandleAsync(_message, CancellationToken.None);
     }
 
+    /// <summary>
+    /// A step whose attempts ran out used to leave its job hanging: the broker dropped the message and nothing upstream
+    /// heard of it.
+    /// </summary>
+    [Fact]
+    public async Task Step_GivenUpByTheBroker_EndsTheJobAsFailed()
+    {
+        var consumer = Consumer(_ => throw new HttpRequestException("the search engine is down"));
+
+        await consumer.ExhaustedAsync(_message, new HttpRequestException("the search engine is down"), CancellationToken.None);
+
+        _dispatcher.Verify(d => d.FailAsync(
+            _message.Context,
+            It.Is<WorkflowFailure>(failure => failure.Step == nameof(Step.Search) && failure.Reason == "The step failed on every attempt."),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Step_GivenUpWithoutAContext_ReportsNothing()
+    {
+        var consumer = Consumer(_ => Task.FromResult<IReadOnlyList<string>>([]));
+
+        await consumer.ExhaustedAsync(new SearchCommand(null!, []), new InvalidOperationException("no context"), CancellationToken.None);
+
+        VerifyJobWasNotEnded();
+    }
+
     private void VerifyJobWasNotEnded() =>
         _dispatcher.Verify(d => d.FailAsync(
             It.IsAny<WorkflowContext<Step>>(),

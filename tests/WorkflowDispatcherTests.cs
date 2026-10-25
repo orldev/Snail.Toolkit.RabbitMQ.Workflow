@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using Snail.Toolkit.RabbitMQ.Producers;
 
@@ -8,6 +9,10 @@ public class WorkflowDispatcherTests
 {
     private readonly Mock<IRabbitProducer> _producer = new(MockBehavior.Strict);
     private readonly Mock<IWorkflowNotifier<Step>> _notifier = new();
+    private readonly FakeTimeProvider _time = new(new DateTimeOffset(2026, 10, 23, 9, 0, 0, TimeSpan.Zero));
+    private readonly LocalLedger _ledger;
+
+    public WorkflowDispatcherTests() => _ledger = new LocalLedger(_time);
     private readonly JobCancellation _cancellation =
         new(new WorkflowOptions(), TimeProvider.System);
 
@@ -30,7 +35,7 @@ public class WorkflowDispatcherTests
         var blueprint = new WorkflowBlueprint<Step>()
             .Step<ExpandCommand, None, int>(Step.Expand, (context, _) => new ExpandCommand(context))
             .Step<CountedCommand, int, string>(Step.Search, (context, count) => new CountedCommand(context, count));
-        var context = new WorkflowContext<Step>(Guid.NewGuid(), "query", [Step.Expand, Step.Search], currentStepIndex: 0);
+        var context = new WorkflowContext<Step>(Guid.NewGuid(), [Step.Expand, Step.Search], currentStepIndex: 0);
 
         await Dispatcher(blueprint).DispatchAsync(context, 12);
 
@@ -45,7 +50,7 @@ public class WorkflowDispatcherTests
         var blueprint = new WorkflowBlueprint<Step>()
             .Step<ExpandCommand, None, string[]>(Step.Expand, (context, _) => new ExpandCommand(context))
             .Step<SearchCommand, IReadOnlyList<string>, string>(Step.Search, (context, terms) => new SearchCommand(context, terms));
-        var context = new WorkflowContext<Step>(Guid.NewGuid(), "query", [Step.Expand, Step.Search], currentStepIndex: 0);
+        var context = new WorkflowContext<Step>(Guid.NewGuid(), [Step.Expand, Step.Search], currentStepIndex: 0);
 
         await Dispatcher(blueprint).DispatchAsync(context, new[] { "blue sky" });
 
@@ -57,10 +62,69 @@ public class WorkflowDispatcherTests
     {
         var published = Publishes<ExpandCommand>();
 
-        await Dispatcher().StartAsync(TestWorkflow.FullSearch, Guid.NewGuid(), "why is the sky blue");
+        await Dispatcher().StartAsync(TestWorkflow.FullSearch, Guid.NewGuid(), default(None));
 
         Assert.Equal(Step.Expand, published.Value!.Context.CurrentStep);
     }
+
+    /// <summary>
+    /// A job started without an id gets one no other job can have, and the caller learns it.
+    /// </summary>
+    [Fact]
+    public async Task Start_WithoutAnId_GivesTheJobANewOneAndAnswersWithIt()
+    {
+        var published = Publishes<ExpandCommand>();
+
+        Guid jobId = await Dispatcher().StartAsync(TestWorkflow.FullSearch, default(None), CancellationToken.None);
+
+        Assert.Equal(jobId, published.Value!.Context.JobId);
+        Assert.Equal(7, jobId.Version);
+    }
+
+    [Fact]
+    public async Task Start_AnyJob_StampsItsStartInUtc()
+    {
+        var published = Publishes<ExpandCommand>();
+
+        await Dispatcher().StartAsync(TestWorkflow.FullSearch, Guid.NewGuid(), default(None));
+
+        Assert.Equal(_time.GetUtcNow().UtcDateTime, published.Value!.Context.StartedAt);
+    }
+
+    [Fact]
+    public async Task Start_WithThePayloadTheFirstStepAccepts_HandsItToThatStep()
+    {
+        var published = Publishes<SearchCommand>();
+        var blueprint = new WorkflowBlueprint<Step>()
+            .Step<SearchCommand, IReadOnlyList<string>, string>(Step.Search, (context, terms) => new SearchCommand(context, terms))
+            .Plan("search", Step.Search);
+
+        await Dispatcher(blueprint).StartAsync("search", Guid.NewGuid(), (IReadOnlyList<string>)["blue sky"]);
+
+        Assert.Equal(["blue sky"], published.Value!.Terms);
+    }
+
+    /// <summary>
+    /// The payload a job starts with is the one pairing startup cannot see, so it is checked by the call that chose
+    /// it, before anything is published.
+    /// </summary>
+    [Fact]
+    public async Task Start_WithAPayloadTheFirstStepDoesNotAccept_IsRefusedBeforeAnythingIsPublished()
+    {
+        var failure = await Assert.ThrowsAsync<WorkflowConfigurationException>(async () =>
+            await Dispatcher().StartAsync(TestWorkflow.FullSearch, Guid.NewGuid(), "why is the sky blue"));
+
+        Assert.Contains("Expand", failure.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Every job started with an empty id would share one cancellation entry, and the first of them to end would
+    /// release it for all the others.
+    /// </summary>
+    [Fact]
+    public async Task Start_WithAnEmptyJobId_IsRefused() =>
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            await Dispatcher().StartAsync(TestWorkflow.FullSearch, Guid.Empty, default(None)));
 
     [Fact]
     public async Task Dispatch_AfterTheLastStep_FinishesTheJobAndPublishesNothing()
@@ -86,7 +150,7 @@ public class WorkflowDispatcherTests
             .Step<ExpandCommand, None, IReadOnlyList<string>>(Step.Expand, (context, _) => new ExpandCommand(context))
             .Step<RankCommand, string, string>(Step.Rank, (context, _) => new RankCommand(context, []));
         var adHoc = new WorkflowContext<Step>(
-            Guid.NewGuid(), "query", [Step.Expand, Step.Rank], currentStepIndex: 0);
+            Guid.NewGuid(), [Step.Expand, Step.Rank], currentStepIndex: 0);
 
         var failure = await Assert.ThrowsAsync<WorkflowConfigurationException>(async () =>
             await Dispatcher(blueprint).DispatchAsync(adHoc, (IReadOnlyList<string>)["term"]));
@@ -139,7 +203,10 @@ public class WorkflowDispatcherTests
         new(_producer.Object,
             blueprint ?? TestWorkflow.Blueprint(),
             _cancellation,
+            _ledger,
             _notifier.Object,
+            new WorkflowOptions(),
+            _time,
             NullLogger<WorkflowDispatcher<Step>>.Instance);
 
     private sealed class StrongBox<T> where T : class

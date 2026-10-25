@@ -32,6 +32,7 @@ public class Counting
         var services = new ServiceCollection();
         services.AddLogging(logging => logging.SetMinimumLevel(LogLevel.Information));
         services.AddSingleton<IRabbitProducer, CountingProducer>();
+        services.AddSingleton<IWorkflowLedger, AcceptingLedger>();
         services.AddWorkflow<Tally>(workflow => workflow
             .Step<CountCommand, None, int>(Tally.Count, static (context, _) => new CountCommand(context))
             .Step<ReportCommand, int, string>(Tally.Report, static (context, documents) => new ReportCommand(context, documents))
@@ -39,7 +40,7 @@ public class Counting
 
         _services = services.BuildServiceProvider();
         _dispatcher = _services.GetRequiredService<IWorkflowDispatcher<Tally>>();
-        _counted = new WorkflowContext<Tally>(Guid.Parse("0f8fad5b-d9cb-469f-a165-70867728950e"), "count the documents", [Tally.Count, Tally.Report], 0);
+        _counted = new WorkflowContext<Tally>(Guid.Parse("0f8fad5b-d9cb-469f-a165-70867728950e"), [Tally.Count, Tally.Report], 0);
     }
 
     [GlobalCleanup]

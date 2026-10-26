@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <!-- The last release on NuGet: a pack fails on any change that would break a user of it. Raised with each release. -->
+    <SnailPackageBaseline>0.1.0</SnailPackageBaseline>
+  </PropertyGroup>
+</Project>

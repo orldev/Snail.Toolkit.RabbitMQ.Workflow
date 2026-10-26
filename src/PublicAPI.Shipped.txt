@@ -1,1 +1,122 @@
 #nullable enable
+Snail.Toolkit.RabbitMQ.Workflow.Extensions.RabbitConnectionBuilderExtensions
+Snail.Toolkit.RabbitMQ.Workflow.Extensions.RabbitConnectionBuilderExtensions.extension(Snail.Toolkit.RabbitMQ.Connections.IRabbitConnectionBuilder!)
+Snail.Toolkit.RabbitMQ.Workflow.Extensions.RabbitConnectionBuilderExtensions.extension(Snail.Toolkit.RabbitMQ.Connections.IRabbitConnectionBuilder!).AddWorkflowDeadline<TStep>(string! queue) -> Snail.Toolkit.RabbitMQ.Connections.IRabbitConnectionBuilder!
+Snail.Toolkit.RabbitMQ.Workflow.Extensions.RabbitQueueBuilderExtensions
+Snail.Toolkit.RabbitMQ.Workflow.Extensions.RabbitQueueBuilderExtensions.extension<T>(Snail.Toolkit.RabbitMQ.Queues.IRabbitQueueBuilder<T>!)
+Snail.Toolkit.RabbitMQ.Workflow.Extensions.RabbitQueueBuilderExtensions.extension<T>(Snail.Toolkit.RabbitMQ.Queues.IRabbitQueueBuilder<T>!).AsWorkflowStep(System.TimeSpan delay, int maxAttempts = 3, string? parkTo = null) -> Snail.Toolkit.RabbitMQ.Queues.IRabbitQueueBuilder<T>!
+Snail.Toolkit.RabbitMQ.Workflow.Extensions.ServiceCollectionExtensions
+Snail.Toolkit.RabbitMQ.Workflow.Extensions.ServiceCollectionExtensions.extension(Microsoft.Extensions.DependencyInjection.IServiceCollection!)
+Snail.Toolkit.RabbitMQ.Workflow.Extensions.ServiceCollectionExtensions.extension(Microsoft.Extensions.DependencyInjection.IServiceCollection!).AddJobCancellation(Snail.Toolkit.RabbitMQ.Workflow.WorkflowOptions! options) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+Snail.Toolkit.RabbitMQ.Workflow.Extensions.ServiceCollectionExtensions.extension(Microsoft.Extensions.DependencyInjection.IServiceCollection!).AddWorkflow<TStep>(System.Action<Snail.Toolkit.RabbitMQ.Workflow.WorkflowBlueprint<TStep>!>! workflow) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+Snail.Toolkit.RabbitMQ.Workflow.Extensions.ServiceCollectionExtensions.extension(Microsoft.Extensions.DependencyInjection.IServiceCollection!).AddWorkflowDispatch<TStep>(Snail.Toolkit.RabbitMQ.Workflow.WorkflowBlueprint<TStep>! blueprint) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+Snail.Toolkit.RabbitMQ.Workflow.IJobCancellation
+Snail.Toolkit.RabbitMQ.Workflow.IJobCancellation.Token(System.Guid jobId, System.DateTime startedAt = default(System.DateTime)) -> System.Threading.CancellationToken
+Snail.Toolkit.RabbitMQ.Workflow.IJobCancellation.TryCancel(System.Guid jobId) -> bool
+Snail.Toolkit.RabbitMQ.Workflow.IJobCancellation.TryComplete(System.Guid jobId) -> bool
+Snail.Toolkit.RabbitMQ.Workflow.IWorkflowCommand<TStep>
+Snail.Toolkit.RabbitMQ.Workflow.IWorkflowCommand<TStep>.Context.get -> Snail.Toolkit.RabbitMQ.Workflow.WorkflowContext<TStep>!
+Snail.Toolkit.RabbitMQ.Workflow.IWorkflowCommand<TStep>.Context.init -> void
+Snail.Toolkit.RabbitMQ.Workflow.IWorkflowDispatcher<TStep>
+Snail.Toolkit.RabbitMQ.Workflow.IWorkflowDispatcher<TStep>.DispatchAsync<TResult>(Snail.Toolkit.RabbitMQ.Workflow.WorkflowContext<TStep>! context, TResult result, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+Snail.Toolkit.RabbitMQ.Workflow.IWorkflowDispatcher<TStep>.FailAsync(Snail.Toolkit.RabbitMQ.Workflow.WorkflowContext<TStep>! context, Snail.Toolkit.RabbitMQ.Workflow.WorkflowFailure! failure, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+Snail.Toolkit.RabbitMQ.Workflow.IWorkflowDispatcher<TStep>.StartAsync<TPayload>(string! plan, System.Guid jobId, TPayload payload, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+Snail.Toolkit.RabbitMQ.Workflow.IWorkflowDispatcher<TStep>.StartAsync<TPayload>(string! plan, TPayload payload, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<System.Guid>
+Snail.Toolkit.RabbitMQ.Workflow.IWorkflowLedger
+Snail.Toolkit.RabbitMQ.Workflow.IWorkflowLedger.IsShared.get -> bool
+Snail.Toolkit.RabbitMQ.Workflow.IWorkflowLedger.ReleaseHandOverAsync(System.Guid jobId, int stepIndex, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+Snail.Toolkit.RabbitMQ.Workflow.IWorkflowLedger.TryEndAsync(System.Guid jobId, System.TimeSpan keepFor, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+Snail.Toolkit.RabbitMQ.Workflow.IWorkflowLedger.TryHandOverAsync(System.Guid jobId, int stepIndex, System.TimeSpan keepFor, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+Snail.Toolkit.RabbitMQ.Workflow.IWorkflowNotifier<TStep>
+Snail.Toolkit.RabbitMQ.Workflow.IWorkflowNotifier<TStep>.FailedAsync(Snail.Toolkit.RabbitMQ.Workflow.WorkflowContext<TStep>! context, Snail.Toolkit.RabbitMQ.Workflow.WorkflowFailure! failure, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+Snail.Toolkit.RabbitMQ.Workflow.IWorkflowNotifier<TStep>.FinishedAsync(Snail.Toolkit.RabbitMQ.Workflow.WorkflowContext<TStep>! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+Snail.Toolkit.RabbitMQ.Workflow.IWorkflowNotifier<TStep>.StepStartedAsync(Snail.Toolkit.RabbitMQ.Workflow.WorkflowContext<TStep>! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+Snail.Toolkit.RabbitMQ.Workflow.JobCancellation
+Snail.Toolkit.RabbitMQ.Workflow.JobCancellation.JobCancellation(Snail.Toolkit.RabbitMQ.Workflow.WorkflowOptions! options, System.TimeProvider! time) -> void
+Snail.Toolkit.RabbitMQ.Workflow.JobCancellation.Token(System.Guid jobId, System.DateTime startedAt = default(System.DateTime)) -> System.Threading.CancellationToken
+Snail.Toolkit.RabbitMQ.Workflow.JobCancellation.TryCancel(System.Guid jobId) -> bool
+Snail.Toolkit.RabbitMQ.Workflow.JobCancellation.TryComplete(System.Guid jobId) -> bool
+Snail.Toolkit.RabbitMQ.Workflow.None
+Snail.Toolkit.RabbitMQ.Workflow.None.Equals(Snail.Toolkit.RabbitMQ.Workflow.None other) -> bool
+Snail.Toolkit.RabbitMQ.Workflow.None.None() -> void
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowBlueprint<TStep>
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowBlueprint<TStep>.Options.get -> Snail.Toolkit.RabbitMQ.Workflow.WorkflowOptions!
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowBlueprint<TStep>.Plan(string! name, params TStep[]! steps) -> Snail.Toolkit.RabbitMQ.Workflow.WorkflowBlueprint<TStep>!
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowBlueprint<TStep>.Step<TCommand, TIn, TOut>(TStep step, System.Func<Snail.Toolkit.RabbitMQ.Workflow.WorkflowContext<TStep>!, TIn, TCommand!>! command) -> Snail.Toolkit.RabbitMQ.Workflow.WorkflowBlueprint<TStep>!
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowBlueprint<TStep>.Steps(string! name) -> System.Collections.Generic.IReadOnlyList<TStep>!
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowBlueprint<TStep>.Validate() -> void
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowBlueprint<TStep>.WorkflowBlueprint() -> void
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowConfigurationException
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowConfigurationException.WorkflowConfigurationException(string! message) -> void
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowConsumer<TCommand, TStep, TResult>
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowConsumer<TCommand, TStep, TResult>.ExhaustedAsync(TCommand message, System.Exception! failure, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowConsumer<TCommand, TStep, TResult>.HandleAsync(TCommand message, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowConsumer<TCommand, TStep, TResult>.WorkflowConsumer(Snail.Toolkit.RabbitMQ.Workflow.IJobCancellation! cancellation, Snail.Toolkit.RabbitMQ.Workflow.IWorkflowDispatcher<TStep>! dispatcher, Microsoft.Extensions.Logging.ILoggerFactory! loggerFactory) -> void
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowContext<TStep>
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowContext<TStep>.<Clone>$() -> Snail.Toolkit.RabbitMQ.Workflow.WorkflowContext<TStep>!
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowContext<TStep>.CurrentStep.get -> TStep
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowContext<TStep>.CurrentStepIndex.get -> int
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowContext<TStep>.CurrentStepIndex.init -> void
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowContext<TStep>.Equals(Snail.Toolkit.RabbitMQ.Workflow.WorkflowContext<TStep>? other) -> bool
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowContext<TStep>.IsFinished.get -> bool
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowContext<TStep>.JobId.get -> System.Guid
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowContext<TStep>.JobId.init -> void
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowContext<TStep>.MoveNext() -> Snail.Toolkit.RabbitMQ.Workflow.WorkflowContext<TStep>!
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowContext<TStep>.PreviousStep.get -> TStep?
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowContext<TStep>.StartedAt.get -> System.DateTime
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowContext<TStep>.StartedAt.init -> void
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowContext<TStep>.Steps.get -> System.Collections.Generic.IReadOnlyList<TStep>!
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowContext<TStep>.Steps.init -> void
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowContext<TStep>.WorkflowContext(System.Guid jobId, System.Collections.Generic.IReadOnlyList<TStep>! steps, int currentStepIndex = -1, System.DateTime startedAt = default(System.DateTime)) -> void
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowDeadline<TStep>
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowDeadline<TStep>.<Clone>$() -> Snail.Toolkit.RabbitMQ.Workflow.WorkflowDeadline<TStep>!
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowDeadline<TStep>.Context.get -> Snail.Toolkit.RabbitMQ.Workflow.WorkflowContext<TStep>!
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowDeadline<TStep>.Context.init -> void
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowDeadline<TStep>.Deconstruct(out Snail.Toolkit.RabbitMQ.Workflow.WorkflowContext<TStep>! Context) -> void
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowDeadline<TStep>.Equals(Snail.Toolkit.RabbitMQ.Workflow.WorkflowDeadline<TStep>? other) -> bool
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowDeadline<TStep>.WorkflowDeadline(Snail.Toolkit.RabbitMQ.Workflow.WorkflowContext<TStep>! Context) -> void
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowFailure
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowFailure.<Clone>$() -> Snail.Toolkit.RabbitMQ.Workflow.WorkflowFailure!
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowFailure.Deconstruct(out string! Reason, out string? Step) -> void
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowFailure.Equals(Snail.Toolkit.RabbitMQ.Workflow.WorkflowFailure? other) -> bool
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowFailure.Reason.get -> string!
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowFailure.Reason.init -> void
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowFailure.Step.get -> string?
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowFailure.Step.init -> void
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowFailure.WorkflowFailure(string! Reason, string? Step = null) -> void
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowFailureException
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowFailureException.Failure.get -> Snail.Toolkit.RabbitMQ.Workflow.WorkflowFailure!
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowFailureException.WorkflowFailureException(string! reason, System.Exception? innerException = null) -> void
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowOptions
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowOptions.JobLifetime.get -> System.TimeSpan
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowOptions.JobLifetime.set -> void
+Snail.Toolkit.RabbitMQ.Workflow.WorkflowOptions.WorkflowOptions() -> void
+abstract Snail.Toolkit.RabbitMQ.Workflow.WorkflowConsumer<TCommand, TStep, TResult>.ProcessAsync(TCommand message, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<TResult>!
+override Snail.Toolkit.RabbitMQ.Workflow.None.GetHashCode() -> int
+override Snail.Toolkit.RabbitMQ.Workflow.WorkflowContext<TStep>.Equals(object? obj) -> bool
+override Snail.Toolkit.RabbitMQ.Workflow.WorkflowContext<TStep>.GetHashCode() -> int
+override Snail.Toolkit.RabbitMQ.Workflow.WorkflowContext<TStep>.ToString() -> string!
+override Snail.Toolkit.RabbitMQ.Workflow.WorkflowDeadline<TStep>.Equals(object? obj) -> bool
+override Snail.Toolkit.RabbitMQ.Workflow.WorkflowDeadline<TStep>.GetHashCode() -> int
+override Snail.Toolkit.RabbitMQ.Workflow.WorkflowDeadline<TStep>.ToString() -> string!
+override Snail.Toolkit.RabbitMQ.Workflow.WorkflowFailure.Equals(object? obj) -> bool
+override Snail.Toolkit.RabbitMQ.Workflow.WorkflowFailure.GetHashCode() -> int
+override Snail.Toolkit.RabbitMQ.Workflow.WorkflowFailure.ToString() -> string!
+static Snail.Toolkit.RabbitMQ.Workflow.Extensions.RabbitConnectionBuilderExtensions.AddWorkflowDeadline<TStep>(this Snail.Toolkit.RabbitMQ.Connections.IRabbitConnectionBuilder! connection, string! queue) -> Snail.Toolkit.RabbitMQ.Connections.IRabbitConnectionBuilder!
+static Snail.Toolkit.RabbitMQ.Workflow.Extensions.RabbitQueueBuilderExtensions.AsWorkflowStep<T>(this Snail.Toolkit.RabbitMQ.Queues.IRabbitQueueBuilder<T>! queue, System.TimeSpan delay, int maxAttempts = 3, string? parkTo = null) -> Snail.Toolkit.RabbitMQ.Queues.IRabbitQueueBuilder<T>!
+static Snail.Toolkit.RabbitMQ.Workflow.Extensions.ServiceCollectionExtensions.AddJobCancellation(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, Snail.Toolkit.RabbitMQ.Workflow.WorkflowOptions! options) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static Snail.Toolkit.RabbitMQ.Workflow.Extensions.ServiceCollectionExtensions.AddWorkflow<TStep>(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<Snail.Toolkit.RabbitMQ.Workflow.WorkflowBlueprint<TStep>!>! workflow) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static Snail.Toolkit.RabbitMQ.Workflow.Extensions.ServiceCollectionExtensions.AddWorkflowDispatch<TStep>(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, Snail.Toolkit.RabbitMQ.Workflow.WorkflowBlueprint<TStep>! blueprint) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static Snail.Toolkit.RabbitMQ.Workflow.None.operator !=(Snail.Toolkit.RabbitMQ.Workflow.None left, Snail.Toolkit.RabbitMQ.Workflow.None right) -> bool
+static Snail.Toolkit.RabbitMQ.Workflow.None.operator ==(Snail.Toolkit.RabbitMQ.Workflow.None left, Snail.Toolkit.RabbitMQ.Workflow.None right) -> bool
+static Snail.Toolkit.RabbitMQ.Workflow.WorkflowContext<TStep>.operator !=(Snail.Toolkit.RabbitMQ.Workflow.WorkflowContext<TStep>? left, Snail.Toolkit.RabbitMQ.Workflow.WorkflowContext<TStep>? right) -> bool
+static Snail.Toolkit.RabbitMQ.Workflow.WorkflowContext<TStep>.operator ==(Snail.Toolkit.RabbitMQ.Workflow.WorkflowContext<TStep>? left, Snail.Toolkit.RabbitMQ.Workflow.WorkflowContext<TStep>? right) -> bool
+static Snail.Toolkit.RabbitMQ.Workflow.WorkflowDeadline<TStep>.operator !=(Snail.Toolkit.RabbitMQ.Workflow.WorkflowDeadline<TStep>? left, Snail.Toolkit.RabbitMQ.Workflow.WorkflowDeadline<TStep>? right) -> bool
+static Snail.Toolkit.RabbitMQ.Workflow.WorkflowDeadline<TStep>.operator ==(Snail.Toolkit.RabbitMQ.Workflow.WorkflowDeadline<TStep>? left, Snail.Toolkit.RabbitMQ.Workflow.WorkflowDeadline<TStep>? right) -> bool
+static Snail.Toolkit.RabbitMQ.Workflow.WorkflowFailure.Unknown.get -> Snail.Toolkit.RabbitMQ.Workflow.WorkflowFailure!
+static Snail.Toolkit.RabbitMQ.Workflow.WorkflowFailure.operator !=(Snail.Toolkit.RabbitMQ.Workflow.WorkflowFailure? left, Snail.Toolkit.RabbitMQ.Workflow.WorkflowFailure? right) -> bool
+static Snail.Toolkit.RabbitMQ.Workflow.WorkflowFailure.operator ==(Snail.Toolkit.RabbitMQ.Workflow.WorkflowFailure? left, Snail.Toolkit.RabbitMQ.Workflow.WorkflowFailure? right) -> bool
+static Snail.Toolkit.RabbitMQ.Workflow.WorkflowOptions.LongestJobLifetime.get -> System.TimeSpan
+virtual Snail.Toolkit.RabbitMQ.Workflow.WorkflowConsumer<TCommand, TStep, TResult>.CanRetry(System.Exception! exception) -> bool
+~override Snail.Toolkit.RabbitMQ.Workflow.None.Equals(object obj) -> bool
+~override Snail.Toolkit.RabbitMQ.Workflow.None.ToString() -> string
